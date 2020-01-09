@@ -1,0 +1,320 @@
+router.post("/price-engine", async (req, res) => {
+  const file_ids = [];
+  //const rewardees = []
+
+  let { analysisId, jobName, entEtherAddress, amountToChargeEnt, fileIDs, userid } = req.body;
+
+
+  for (let fileID of fileIDs) {
+    file_ids.push(fileID);
+
+  }
+
+
+  const client = await pgPool.connect();
+  let getDataownersAddress = ` 
+    SELECT ether_address ,id FROM core.USER 
+    WHERE 
+    ether_address != ' ${entEtherAddress} ' and 
+    id IN 
+    (SELECT owner_id FROM core.file_metadata
+    WHERE id = any ('{${file_ids}}')
+    and permission = 'monetizable' 
+     
+    )
+   
+    `
+
+
+
+  let getDataownersAddressResult = await pgPoolQuery(getDataownersAddress);
+
+  let allDOAddresses = getDataownersAddressResult.rows.map(row => row.ether_address);
+  let rewardees = getDataownersAddressResult.rows.map(row => row.id);
+
+  console.log(allDOAddresses, 'getDataownersAddressResult')
+  console.log(rewardees, 'rewardees')
+  //client.release()
+
+  /* 
+    const demo = {
+      analysisId: '462e09b8-a92f-45a3-87d8-12dad9275bf7',
+      entEtherAddress: '0x24096E225d57965239017Ede2186282dE3FaAb68',
+      amountToChargeEnt: 5,
+      fileIDs:
+        ['d816956a-2d39-11ea-a009-cf8413390740',
+          'd81922f8-2d39-11ea-a009-03b6a31858ce']
+    } */
+
+
+  jobName = jobName ? jobName : "No name provided";
+
+  try {
+    const payerWallet = process.env.PERMISSION_PAYER_ADDRESS;
+    const payerPK = Buffer.from(process.env.PERMISSION_PRIV_KEY, "hex");
+    const web3 = new Web3(
+      new Web3.providers.HttpProvider(process.env.PERMISSION_INFURA_URL)
+    );
+
+    // const target = process.env.PERMISSION_CONTRACT_ADDRESS;
+    const target = "0x3fdedf974d199aef319624989540e1c3df4ec926"
+    const contract = new web3.eth.Contract(
+      [
+        {
+          "constant": false,
+          "inputs": [
+            {
+              "name": "_addr",
+              "type": "address"
+            }
+          ],
+          "name": "addAdmins",
+          "outputs": [
+            {
+              "name": "",
+              "type": "bool"
+            }
+          ],
+          "payable": false,
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "constant": false,
+          "inputs": [
+            {
+              "name": "_analysisId",
+              "type": "string"
+            },
+            {
+              "name": "_about",
+              "type": "string"
+            },
+            {
+              "name": "_ent",
+              "type": "address"
+            },
+            {
+              "name": "_dataOwners",
+              "type": "address[]"
+            },
+            {
+              "name": "_amountReceivedFromEnt",
+              "type": "uint256"
+            },
+            {
+              "name": "_amountToPayToDO",
+              "type": "uint256"
+            }
+          ],
+          "name": "createAnalysis",
+          "outputs": [],
+          "payable": false,
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "payable": false,
+          "stateMutability": "nonpayable",
+          "type": "constructor"
+        },
+        {
+          "constant": true,
+          "inputs": [
+            {
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "name": "admins",
+          "outputs": [
+            {
+              "name": "",
+              "type": "bool"
+            }
+          ],
+          "payable": false,
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "constant": true,
+          "inputs": [
+            {
+              "name": "_analysisId",
+              "type": "string"
+            }
+          ],
+          "name": "howMuchIPaidForAnalysis",
+          "outputs": [
+            {
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "payable": false,
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "constant": true,
+          "inputs": [
+            {
+              "name": "_analysisId",
+              "type": "string"
+            }
+          ],
+          "name": "howMuchWasIPaidForAnalysis",
+          "outputs": [
+            {
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "payable": false,
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "constant": true,
+          "inputs": [
+            {
+              "name": "_addr",
+              "type": "address"
+            },
+            {
+              "name": "_analysisId",
+              "type": "string"
+            }
+          ],
+          "name": "howMuchWasUserPaidForAnalysis",
+          "outputs": [
+            {
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "payable": false,
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "constant": true,
+          "inputs": [
+            {
+              "name": "_analysisId",
+              "type": "string"
+            }
+          ],
+          "name": "wasMyDataUsedForAnalysis",
+          "outputs": [
+            {
+              "name": "",
+              "type": "bool"
+            }
+          ],
+          "payable": false,
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "constant": true,
+          "inputs": [
+            {
+              "name": "_analysisId",
+              "type": "string"
+            },
+            {
+              "name": "_addr",
+              "type": "address"
+            }
+          ],
+          "name": "wasUserDataUsedForAnalysis",
+          "outputs": [
+            {
+              "name": "",
+              "type": "bool"
+            }
+          ],
+          "payable": false,
+          "stateMutability": "view",
+          "type": "function"
+        }
+      ],
+      target
+    );
+
+    const gasPrice = "40"; //Gwei
+
+    const gasLimit = 300000; //Wei
+
+
+
+    /* const appEnginePermission = await contract.methods
+      .createAnalysis(analysisId,jobName,entEtherAddress,fileIDs,amountToChargeEnt,10)
+      .call({ from: process.env.PERMISSION_PAYER_ADDRESS })
+      .then(compactPermission => compactPermission)
+      .catch(e => { console.log('');throw e }); */
+    const txCount = await web3.eth.getTransactionCount(payerWallet);
+    const txObject = {
+      nonce: web3.utils.toHex(txCount),
+      gasPrice: web3.utils.toHex(
+        web3.utils.toWei(gasPrice, "gwei")
+      ),
+      gasLimit: web3.utils.toHex(gasLimit),
+      to: target,
+      data: contract.methods
+        .createAnalysis(analysisId, jobName, entEtherAddress, allDOAddresses, Number(amountToChargeEnt), 0.05)
+        .encodeABI()
+    };
+    const tx = new Tx(txObject);
+    tx.sign(payerPK);
+    const serializedTx = tx.serialize();
+    const raw = "0x" + serializedTx.toString("hex");
+    const transaction = await web3.eth.sendSignedTransaction(raw);
+
+
+    //INSERT INTO films (code, title, did, date_prod, kind) VALUES
+    //('B6717', 'Tampopo', 110, '1985-02-10', 'Comedy'),
+    //('HG120', 'The Dinner Game', 140, DEFAULT, 'Comedy');
+
+    if (rewardees.length > 0) {
+      let addFunDataRows = []
+
+      rewardees.map((rewardee) => { addFunDataRows.push([rewardee, 'credit', 'data usage reward for analysis ' + analysisId, 0.05]) })
+
+      console.log(addFunDataRows, 'addFunDataRows')
+      let index = 1;
+      let valuesPlaceholder = Array(rewardees.length).fill(0).map(v => `(${Array(4).fill(0).map(v => `$${index++}`).join(", ")})`).join(", ")
+      console.log(valuesPlaceholder, 'valuesPlaceholder')
+
+      let newArr = []
+      addFunDataRows.forEach(v => v.forEach(p => newArr.push(p)))
+      console.log(newArr, 'newArr')
+
+
+      let insertRewardQuery = `insert into core.enterprise_fund(user_id,type,reason,amount) 
+    VALUES ${valuesPlaceholder} `;
+      await client.query(insertRewardQuery, newArr);
+    }
+
+    let insertTx = `insert into core.transaction (user_id,tx_hash,txType,reason,summary ) values($1,$2,$3,$3,$4) `;
+    await client.query(insertTx, [userid, transaction.transactionHash, "Pipeline run(AnalysisId:" + analysisId + ")", `Pipeline run`]);
+
+    client.release()
+    console.log(transaction.transactionHash, 'transaction')
+    ///return (transaction.transactionHash);
+    res.status(201).send(transaction.transactionHash);
+
+  } catch (e) {
+    if (client)
+      client.release()
+    console.log(e, 'in error');
+
+
+    res.status(400).send(e);
+  }
+
+
+});
